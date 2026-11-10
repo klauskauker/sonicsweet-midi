@@ -29,6 +29,8 @@ npm run check:native
 npm start
 ```
 
+Verwende unter Windows für die Installation stattdessen `npm ci --ignore-scripts` und danach `npm run build:link:win`. Der zweite Befehl korrigiert das Plattform-Flag im Build des Link-Moduls und kompiliert es lokal.
+
 Die App verwendet standardmäßig sonicsweet.de. Über die Server-Einstellungen oder `SONICSWEET_SERVER_URL` lässt sich ein anderer SonicSweet-Server auswählen.
 
 Mit `npm run dist:mac` beziehungsweise `npm run dist:win` baust du ein ZIP auf dem jeweiligen Zielsystem. GitHub Actions baut die veröffentlichten Pakete auf den jeweiligen Plattformen. macOS-Releases sind ad hoc signiert und tragen keine Apple Developer ID oder Notarisierung. Windows-Releases sind ohne Herausgebersignatur.

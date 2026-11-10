@@ -2,7 +2,6 @@ name: Desktop packages
 
 on:
   push:
-    branches: [main]
     tags: ['v*']
   pull_request:
   workflow_dispatch:
@@ -38,7 +37,21 @@ jobs:
           node-version: '22'
           architecture: ${{ matrix.arch }}
           cache: npm
-      - run: npm ci
+      - name: Select macOS SDK
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          sdk=$(xcrun --show-sdk-path)
+          echo "SDKROOT=$sdk" >> "$GITHUB_ENV"
+          if [[ -d "$sdk/usr/include/c++/v1" ]]; then
+            echo "CXXFLAGS=-isystem $sdk/usr/include/c++/v1" >> "$GITHUB_ENV"
+          fi
+      - run: npm ci --foreground-scripts
+        if: runner.os != 'Windows'
+      - run: npm ci --ignore-scripts
+        if: runner.os == 'Windows'
+      - run: npm run build:link:win
+        if: runner.os == 'Windows'
       - run: npm test
       - run: npm run check:native
       - run: npm run prepare:release
