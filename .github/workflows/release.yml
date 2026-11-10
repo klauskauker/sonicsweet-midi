@@ -1,0 +1,122 @@
+name: Desktop packages
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+            target: macos-arm64
+          - runner: macos-15-intel
+            arch: x64
+            target: macos-x64
+          - runner: windows-2022
+            arch: x64
+            target: windows-x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          architecture: ${{ matrix.arch }}
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run check:native
+      - run: npm run prepare:release
+      - run: npm run build:renderer
+      - name: Set archive name and check tag
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -eu
+          version=$(node -p "require('./package.json').version")
+          if [[ "$GITHUB_REF" == refs/tags/* && "$GITHUB_REF_NAME" != "v$version" ]]; then
+            echo "Git tag must match package.json version." >&2
+            exit 1
+          fi
+          echo "ARCHIVE=sonicsweet-midi-$version-$TARGET.zip" >> "$GITHUB_ENV"
+      - name: Package macOS app
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -eu
+          npx --no-install electron-builder --mac --"$ARCH" --dir --publish never
+          app="release/mac-$ARCH/SonicSweet MIDI.app"
+          if [[ "$ARCH" == x64 ]]; then app="release/mac/SonicSweet MIDI.app"; fi
+          native="$app/Contents/Resources/app.asar.unpacked"
+          test -f "$native/node_modules/@ktamas77/abletonlink/build/Release/abletonlink.node"
+          test -f "$native/node_modules/@julusian/midi/prebuilds/midi-darwin-$ARCH/node-napi-v7.node"
+          codesign --force --deep --sign - "$app"
+          codesign --verify --deep --strict "$app"
+          ditto -c -k --sequesterRsrc --keepParent "$app" "release/$ARCHIVE"
+      - name: Package Windows app
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          npx --no-install electron-builder --win --x64 --dir --publish never
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $native = 'release/win-unpacked/resources/app.asar.unpacked'
+          if (!(Test-Path "$native/node_modules/@ktamas77/abletonlink/build/Release/abletonlink.node")) { throw 'Missing Ableton Link module' }
+          if (!(Test-Path "$native/node_modules/@julusian/midi/prebuilds/midi-win32-x64/node-napi-v7.node")) { throw 'Missing MIDI module' }
+          tar.exe -a -cf "release/$env:ARCHIVE" -C release/win-unpacked .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: release/${{ env.ARCHIVE }}
+          if-no-files-found: error
+          compression-level: 0
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+      - name: Collect matching source and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -eu
+          mkdir -p source/npm
+          git archive --format=tar HEAD | tar -xf - -C source
+          npm pack --ignore-scripts --pack-destination source/npm \
+            "$(node -p "require('./package-lock.json').packages['node_modules/@ktamas77/abletonlink'].resolved")" \
+            "$(node -p "require('./package-lock.json').packages['node_modules/@julusian/midi'].resolved")"
+          tar -czf "assets/sonicsweet-midi-$GITHUB_REF_NAME-source.tar.gz" source
+          (cd assets && sha256sum *.zip *.tar.gz > SHA256SUMS.txt)
+          gh release create "$GITHUB_REF_NAME" assets/* --verify-tag --generate-notes --title "SonicSweet MIDI $GITHUB_REF_NAME"

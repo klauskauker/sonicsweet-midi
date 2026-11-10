@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' data:; script-src 'self'; style-src 'self'; connect-src https: http: wss: ws:">
+  <title>SonicSweet MIDI</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main>
+    <header class="app-header">
+      <img src="sonicsweet.png" width="44" height="44" alt="">
+      <h1>SonicSweet MIDI</h1>
+    </header>
+
+    <section class="pairing-card card" aria-labelledby="pairing-title">
+      <div id="qr" class="qr"><div class="spinner"></div></div>
+      <h2 id="pairing-title">QR-Code wird erstellt …</h2>
+      <p id="pairing-detail" class="help" role="status"></p>
+      <button id="renew" type="button" hidden>Erneut versuchen</button>
+    </section>
+
+    <dl class="status-grid card">
+      <div><dt>Verbindung</dt><dd id="connection-status">Server wird verbunden …</dd></div>
+      <div>
+        <dt>MIDI-Ausgang <button type="button" class="info-button" data-midi-info aria-label="Hilfe zum MIDI-Ausgang" hidden>i</button></dt>
+        <dd id="midi-status">Wird eingerichtet …</dd>
+      </div>
+      <div><dt>Ableton Link</dt><dd id="link-status">Aus</dd></div>
+    </dl>
+
+    <section class="card settings-card devices-card">
+      <div class="devices-heading">
+        <h2>Geräte</h2>
+        <div class="global-offset-field">
+          <span class="global-offset-label">Globaler Sync-Offset</span>
+          <div id="global-offset"></div>
+        </div>
+      </div>
+      <p id="device-empty" class="empty-state">Noch kein Gerät gekoppelt.</p>
+      <table id="device-table" class="device-table" aria-label="Gekoppelte Geräte" hidden>
+        <colgroup><col><col class="channel-col"><col class="offset-col"><col class="forget-col"></colgroup>
+        <thead><tr><th scope="col">Gerät</th><th scope="col">MIDI-Kanal</th><th scope="col">Geräte-Offset</th><th scope="col"><span class="sr-only">Aktion</span></th></tr></thead>
+        <tbody id="device-list"></tbody>
+      </table>
+    </section>
+
+    <section class="card settings-card">
+      <div class="section-heading link-heading">
+        <h2 id="link-heading">Ableton Link</h2>
+        <input id="link-enabled" class="switch" type="checkbox" role="switch" aria-labelledby="link-heading">
+      </div>
+      <div class="link-layout">
+        <div class="link-options">
+          <label for="link-quantum">Quantum</label>
+          <select id="link-quantum" disabled>
+            <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+            <option value="4" selected>4</option><option value="8">8</option>
+          </select>
+          <label class="transport-option"><input id="link-transport" type="checkbox" checked disabled> Transport folgen</label>
+        </div>
+        <table class="link-table" aria-label="Ableton-Link-Status">
+          <thead><tr><th scope="col">Beat</th><th scope="col">Phase</th><th scope="col">Transport</th></tr></thead>
+          <tbody><tr><td id="link-beat">—</td><td id="link-phase">—</td><td id="link-playing">—</td></tr></tbody>
+        </table>
+      </div>
+      <p id="link-detail" class="help" role="status"></p>
+    </section>
+
+    <section class="card settings-card">
+      <div class="section-heading">
+        <h2>MIDI</h2>
+        <button type="button" class="info-button" data-midi-info aria-label="Hilfe zum MIDI-Ausgang" hidden>i</button>
+      </div>
+      <div class="midi-fields">
+        <label>Spielmodus
+          <select id="midi-mode">
+            <option value="standard">Standard MIDI</option>
+            <option value="mpe">MPE</option>
+          </select>
+        </label>
+        <label id="backend-row" hidden>Windows MIDI-System
+          <select id="backend">
+            <option value="auto">Automatisch</option>
+            <option value="modern">Windows MIDI Services</option>
+            <option value="legacy">Klassischer MIDI-Ausgang</option>
+          </select>
+        </label>
+        <label id="port-row" hidden>MIDI-Port
+          <select id="legacy-port"></select>
+        </label>
+      </div>
+      <div class="button-row">
+        <button id="refresh-midi" type="button" hidden>Ports neu suchen</button>
+        <button id="test-note" type="button">Testnote</button>
+        <button id="panic" type="button" class="danger">Alle Noten stoppen</button>
+      </div>
+      <p id="midi-help" class="help" role="status"></p>
+    </section>
+
+    <details class="card settings-card">
+      <summary>Server-Einstellungen</summary>
+      <div class="server-fields">
+        <label>SonicSweet-Server
+          <input id="server-url" type="url" spellcheck="false">
+        </label>
+        <button id="save-server" type="button">Server verbinden</button>
+      </div>
+    </details>
+  </main>
+  <dialog id="midi-info" class="card" aria-labelledby="midi-info-title">
+    <h2 id="midi-info-title">MIDI-Ausgang unter Windows</h2>
+    <ol>
+      <li><a id="loopmidi-link" href="https://www.tobias-erichsen.de/software/loopmidi.html">loopMIDI herunterladen</a> und öffnen.</li>
+      <li>In loopMIDI einen Port namens „SonicSweet MIDI“ anlegen.</li>
+      <li>In dieser App unter MIDI „Ports neu suchen“ wählen und den Port auswählen.</li>
+      <li>Denselben Port in deiner Musiksoftware als MIDI-Eingang aktivieren.</li>
+    </ol>
+    <form method="dialog"><button autofocus>Schließen</button></form>
+  </dialog>
+  <script src="../build/renderer.bundle.js"></script>
+</body>
+</html>
